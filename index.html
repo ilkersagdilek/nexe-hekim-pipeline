@@ -6,7 +6,7 @@
 <title>Hekim Pipeline — NEXE</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0f0f0f;--surface:#181818;--border:#2a2a2a;--text:#e8e4dc;--muted:#666;--accent:#c8a96e;--accent2:#7eb8a4;--danger:#e07070;--warn:#d4a843;--green:#7eb8a4}
+  :root{--bg:#0f0f0f;--surface:#181818;--border:#2a2a2a;--text:#e8e4dc;--muted:#666;--accent:#c8a96e;--accent2:#7eb8a4;--danger:#e07070;--warn:#d4a843;--green:#7eb8a4;--blue:#6ba3c8}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh}
   header{padding:28px 36px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap}
@@ -49,7 +49,8 @@
   .badge-iptal{background:rgba(224,112,112,.1);color:var(--danger);border:1px solid rgba(224,112,112,.2)}
   .badge-bekliyor{background:rgba(102,102,102,.1);color:var(--muted);border:1px solid rgba(102,102,102,.2)}
   .badge-devam{background:rgba(200,169,110,.1);color:var(--accent);border:1px solid rgba(200,169,110,.2)}
-  .dil-badge{font-family:'Fraunces',serif;font-size:13px;font-weight:600;color:var(--accent2)}
+  .dil-badge{font-family:'Fraunces',serif;font-size:13px;font-weight:600;color:var(--blue)}
+  .dil-badge.c1{color:var(--green)}
   .paket-text{color:var(--muted);font-size:11px}
   .paket-text.premium{color:var(--accent)}
   .tarih-text{color:var(--accent2);font-size:11px}
@@ -166,7 +167,7 @@ function render(){
     let dB='';
     if(h.dil==='X')dB='<span class="badge badge-iptal">İptal</span>';
     else if(!h.dil)dB='<span class="badge badge-devam">Kursa Başlamadı</span>';
-    else dB=`<span class="dil-badge">${h.dil}</span>`;
+    else dB=`<span class="dil-badge${h.dil==='C1'?' c1':''}">${h.dil}</span>`;
     const premium=h.paket&&h.paket!=='Ücretsiz';
     const pL=h.paket==='nexevita (5.475 Euro)'?'nexevita 5.475€':h.paket;
     const pH=`<span class="paket-text ${premium?'premium':''}">${pL||'—'}</span>`;
