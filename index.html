@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hekim Pipeline — NEXE</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --border: #2a2a2a;
+    --text: #e8e4dc;
+    --muted: #666;
+    --accent: #c8a96e;
+    --accent2: #7eb8a4;
+    --danger: #e07070;
+    --warn: #d4a843;
+    --green: #7eb8a4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    padding: 28px 36px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .logo {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  .logo span { font-style: italic; }
+  .subtitle {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding-bottom: 3px;
+  }
+  .last-update {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  /* STATS BAR */
+  .stats {
+    display: flex;
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat {
+    flex: 1;
+    background: var(--surface);
+    padding: 16px 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .stat:hover { background: #1f1f1f; }
+  .stat.active { background: #1f1f1f; border-bottom: 2px solid var(--accent); }
+  .stat-val {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .stat-val.green { color: var(--green); }
+  .stat-val.warn { color: var(--warn); }
+  .stat-val.danger { color: var(--danger); }
+  .stat-label {
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 6px;
+  }
+
+  /* FILTERS */
+  .filters {
+    padding: 14px 36px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+  .search-wrap {
+    position: relative;
+  }
+  .search-wrap input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 7px 12px 7px 32px;
+    width: 220px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  select:focus { border-color: var(--accent); }
+  .filter-count {
+    color: var(--muted);
+    font-size: 11px;
+    margin-left: auto;
+    letter-spacing: 0.05em;
+  }
+  .btn-reset {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 7px 12px;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+  }
+  .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* TABLE */
+  .table-wrap {
+    overflow-x: auto;
+    padding: 0 36px 36px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0;
+  }
+  thead th {
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+  }
+  thead th:hover { color: var(--accent); }
+  thead th.sorted { color: var(--accent); }
+  tbody tr {
+    border-bottom: 1px solid #1e1e1e;
+    transition: background 0.1s;
+    animation: fadeIn 0.2s ease forwards;
+    opacity: 0;
+  }
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+  tbody tr:hover { background: #161616; }
+  tbody td {
+    padding: 11px 14px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .td-no { color: var(--muted); font-size: 11px; width: 40px; }
+  .td-name { font-weight: 500; color: var(--text); min-width: 160px; }
+  .td-name.iptal { color: var(--muted); text-decoration: line-through; }
+
+  /* BADGES */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .badge-tamam { background: rgba(126,184,164,0.15); color: var(--green); border: 1px solid rgba(126,184,164,0.3); }
+  .badge-kismi { background: rgba(212,168,67,0.15); color: var(--warn); border: 1px solid rgba(212,168,67,0.3); }
+  .badge-iptal { background: rgba(224,112,112,0.1); color: var(--danger); border: 1px solid rgba(224,112,112,0.2); }
+  .badge-bekliyor { background: rgba(102,102,102,0.1); color: var(--muted); border: 1px solid rgba(102,102,102,0.2); }
+  .badge-devam { background: rgba(200,169,110,0.1); color: var(--accent); border: 1px solid rgba(200,169,110,0.2); }
+
+  .dil-badge {
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent2);
+  }
+
+  .paket-text { color: var(--muted); font-size: 11px; }
+  .paket-text.premium { color: var(--accent); }
+
+  .tarih-text { color: var(--accent2); font-size: 11px; }
+
+  /* EMPTY STATE */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.3; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    header { padding: 20px 16px; }
+    .filters { padding: 12px 16px; }
+    .table-wrap { padding: 0 16px 24px; }
+    .stats { flex-wrap: wrap; }
+    .stat { min-width: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">NEXE <span>hekim</span> pipeline</div>
+  </div>
+  <div class="subtitle">nexelabora · nexevita</div>
+  <div class="last-update" id="lastUpdate">Yükleniyor...</div>
+</header>
+
+<div class="stats">
+  <div class="stat" onclick="setFilter('durum','')">
+    <div class="stat-val" id="s-toplam">—</div>
+    <div class="stat-label">Toplam Hekim</div>
+  </div>
+  <div class="stat" onclick="setFilter('durum','aktif')">
+    <div class="stat-val" id="s-aktif">—</div>
+    <div class="stat-label">Aktif Süreç</div>
+  </div>
+  <div class="stat" onclick="setFilter('komisyon','Tamam')">
+    <div class="stat-val green" id="s-tamam">—</div>
+    <div class="stat-label">Komisyon Tamam</div>
+  </div>
+  <div class="stat" onclick="setFilter('komisyon','Kısmi')">
+    <div class="stat-val warn" id="s-kismi">—</div>
+    <div class="stat-label">Kısmi Ödeme</div>
+  </div>
+  <div class="stat" onclick="setFilter('durum','iptal')">
+    <div class="stat-val danger" id="s-iptal">—</div>
+    <div class="stat-label">İptal</div>
+  </div>
+  <div class="stat" onclick="setFilter('durum','bekliyor')">
+    <div class="stat-val" id="s-bekliyor">—</div>
+    <div class="stat-label">Kursa Başlamadı</div>
+  </div>
+</div>
+
+<div class="filters">
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="search" placeholder="İsim veya fakülte ara..." oninput="render()">
+  </div>
+  <select id="f-cinsiyet" onchange="render()">
+    <option value="">Tüm Cinsiyetler</option>
+    <option value="Erkek">Erkek</option>
+    <option value="Kadın">Kadın</option>
+  </select>
+  <select id="f-paket" onchange="render()">
+    <option value="">Tüm Paketler</option>
+    <option value="Ücretsiz">Ücretsiz</option>
+    <option value="400 EURO">400 €</option>
+    <option value="1.200 EURO">1.200 €</option>
+    <option value="3.950 Euro">3.950 €</option>
+    <option value="4.975 Euro">4.975 €</option>
+    <option value="nexevita (5.475 Euro)">nexevita 5.475 €</option>
+  </select>
+  <select id="f-komisyon" onchange="render()">
+    <option value="">Tüm Komisyon Durumları</option>
+    <option value="Tamam">Tamam</option>
+    <option value="Kısmi">Kısmi Ödeme</option>
+    <option value="bekliyor">Bekliyor</option>
+    <option value="X">İptal</option>
+  </select>
+  <select id="f-dil" onchange="render()">
+    <option value="">Tüm Dil Seviyeleri</option>
+    <option value="A1">A1</option>
+    <option value="B2">B2</option>
+    <option value="C1">C1</option>
+    <option value="devam">Kursa Başlamadı</option>
+    <option value="X">İptal</option>
+  </select>
+  <select id="f-durum" onchange="render()" style="display:none">
+    <option value=""></option>
+    <option value="aktif">Aktif</option>
+    <option value="iptal">İptal</option>
+    <option value="bekliyor">Bekliyor</option>
+  </select>
+  <button class="btn-reset" onclick="resetFilters()">↺ Sıfırla</button>
+  <div class="filter-count" id="filterCount"></div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="td-no">#</th>
+        <th onclick="sortBy('ad')">Hekim Adı ↕</th>
+        <th onclick="sortBy('cinsiyet')">Cinsiyet ↕</th>
+        <th onclick="sortBy('fakülte')">Fakülte ↕</th>
+        <th onclick="sortBy('paket')">Paket ↕</th>
+        <th onclick="sortBy('dil')">Dil Seviyesi ↕</th>
+        <th onclick="sortBy('komisyon')">Komisyon ↕</th>
+        <th>Kurs Bitiş</th>
+        <th>Notlar</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty" id="empty" style="display:none">
+    <div class="empty-icon">◎</div>
+    <div>Sonuç bulunamadı</div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '1sR9_QMZzh74NhM_D-ZNKyKkca7ZSgyHh5t9SH-u3blM';
+let allData = [];
+let sortCol = null;
+let sortDir = 1;
+let activeFilter = {};
+
+async function loadData() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Hekimler`;
+  const r = await fetch(url);
+  const text = await r.text();
+  const json = JSON.parse(text.substring(47, text.length - 2));
+  
+  allData = json.table.rows.map(row => {
+    const c = row.c;
+    return {
+      no:       c[0] ? c[0].v : '',
+      ad:       c[1] ? c[1].v : '',
+      cinsiyet: c[2] ? c[2].v : '',
+      fakülte:  c[3] ? c[3].v : '',
+      paket:    c[4] ? c[4].v : '',
+      dil:      c[5] ? c[5].v : null,
+      komisyon: c[6] ? c[6].v : null,
+      tarih:    c[7] ? c[7].v : null,
+      notlar:   c[8] ? c[8].v : null,
+    };
+  });
+
+  document.getElementById('lastUpdate').textContent = 
+    'Güncellendi: ' + new Date().toLocaleString('tr-TR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  updateStats();
+  render();
+}
+
+function parseGDate(v) {
+  if (!v) return null;
+  const m = String(v).match(/Date\((\d+),(\d+),(\d+)\)/);
+  if (!m) return null;
+  const d = new Date(parseInt(m[1]), parseInt(m[2]), parseInt(m[3]));
+  return d.toLocaleDateString('tr-TR', {day:'2-digit', month:'long', year:'numeric'});
+}
+
+function updateStats() {
+  const toplam = allData.length;
+  const iptal  = allData.filter(h => h.dil === 'X').length;
+  const aktif  = allData.filter(h => h.dil !== 'X' && h.dil !== null).length;
+  const tamam  = allData.filter(h => h.komisyon === 'Tamam').length;
+  const kismi  = allData.filter(h => h.komisyon === 'Kısmi').length;
+  const bekliyor = allData.filter(h => h.dil === null && h.komisyon === null).length;
+
+  document.getElementById('s-toplam').textContent = toplam;
+  document.getElementById('s-aktif').textContent = aktif;
+  document.getElementById('s-tamam').textContent = tamam;
+  document.getElementById('s-kismi').textContent = kismi;
+  document.getElementById('s-iptal').textContent = iptal;
+  document.getElementById('s-bekliyor').textContent = bekliyor;
+}
+
+function setFilter(key, val) {
+  if (key === 'durum') {
+    document.getElementById('f-durum').value = val;
+    document.getElementById('f-komisyon').value = '';
+  } else if (key === 'komisyon') {
+    document.getElementById('f-komisyon').value = val;
+    document.getElementById('f-durum').value = '';
+  }
+  render();
+}
+
+function resetFilters() {
+  document.getElementById('search').value = '';
+  document.getElementById('f-cinsiyet').value = '';
+  document.getElementById('f-paket').value = '';
+  document.getElementById('f-komisyon').value = '';
+  document.getElementById('f-dil').value = '';
+  document.getElementById('f-durum').value = '';
+  sortCol = null; sortDir = 1;
+  render();
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  render();
+}
+
+function render() {
+  const search   = document.getElementById('search').value.toLowerCase();
+  const fCinsiyet = document.getElementById('f-cinsiyet').value;
+  const fPaket   = document.getElementById('f-paket').value;
+  const fKomisyon = document.getElementById('f-komisyon').value;
+  const fDil     = document.getElementById('f-dil').value;
+  const fDurum   = document.getElementById('f-durum').value;
+
+  let rows = allData.filter(h => {
+    if (search && !h.ad.toLowerCase().includes(search) && !h.fakülte.toLowerCase().includes(search)) return false;
+    if (fCinsiyet && h.cinsiyet !== fCinsiyet) return false;
+    if (fPaket && h.paket !== fPaket) return false;
+    if (fKomisyon === 'bekliyor' && h.komisyon !== null) return false;
+    else if (fKomisyon && fKomisyon !== 'bekliyor' && h.komisyon !== fKomisyon) return false;
+    if (fDil === 'devam' && h.dil !== null) return false;
+    else if (fDil === 'X' && h.dil !== 'X') return false;
+    else if (fDil && fDil !== 'devam' && fDil !== 'X' && h.dil !== fDil) return false;
+    if (fDurum === 'aktif' && (h.dil === 'X' || h.dil === null)) return false;
+    if (fDurum === 'iptal' && h.dil !== 'X') return false;
+    if (fDurum === 'bekliyor' && (h.dil !== null || h.komisyon !== null)) return false;
+    return true;
+  });
+
+  if (sortCol) {
+    rows.sort((a, b) => {
+      const va = a[sortCol] || '';
+      const vb = b[sortCol] || '';
+      return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    });
+  }
+
+  document.getElementById('filterCount').textContent = 
+    rows.length < allData.length ? `${rows.length} / ${allData.length} hekim` : `${allData.length} hekim`;
+
+  const tbody = document.getElementById('tbody');
+  const empty = document.getElementById('empty');
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = rows.map((h, i) => {
+    const iptal = h.dil === 'X';
+    const tarih = parseGDate(h.tarih);
+
+    // Komisyon badge
+    let kBadge = '';
+    if (h.komisyon === 'Tamam') kBadge = '<span class="badge badge-tamam">✓ Tamam</span>';
+    else if (h.komisyon === 'Kısmi') kBadge = '<span class="badge badge-kismi">⟳ Kısmi</span>';
+    else if (h.komisyon === 'X') kBadge = '<span class="badge badge-iptal">— İptal</span>';
+    else kBadge = '<span class="badge badge-bekliyor">Bekliyor</span>';
+
+    // Dil badge
+    let dBadge = '';
+    if (h.dil === 'X') dBadge = '<span class="badge badge-iptal">İptal</span>';
+    else if (!h.dil) dBadge = '<span class="badge badge-devam">Kursa Başlamadı</span>';
+    else dBadge = `<span class="dil-badge">${h.dil}</span>`;
+
+    // Paket
+    const premium = h.paket && h.paket !== 'Ücretsiz';
+    const paketLabel = h.paket === 'nexevita (5.475 Euro)' ? 'nexevita 5.475€' : h.paket;
+    const paketHtml = `<span class="paket-text ${premium?'premium':''}">${paketLabel||'—'}</span>`;
+
+    return `<tr style="animation-delay:${i*0.015}s">
+      <td class="td-no">${h.no}</td>
+      <td class="td-name ${iptal?'iptal':''}">${h.ad}</td>
+      <td>${h.cinsiyet}</td>
+      <td>${h.fakülte}</td>
+      <td>${paketHtml}</td>
+      <td>${dBadge}</td>
+      <td>${kBadge}</td>
+      <td>${tarih ? `<span class="tarih-text">${tarih}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="color:var(--muted);font-size:11px">${h.notlar||''}</td>
+    </tr>`;
+  }).join('');
+}
+
+loadData();
+// 5 dakikada bir otomatik yenile
+setInterval(loadData, 300000);
+</script>
+</body>
+</html>
