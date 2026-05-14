@@ -91,17 +91,17 @@
 </div>
 <div class="table-wrap">
   <table>
-    <thead><tr>
-      <th class="td-no">#</th>
-      <th onclick="sortBy('ad')">Hekim Adı ↕</th>
-      <th onclick="sortBy('cinsiyet')">Cinsiyet ↕</th>
-      <th onclick="sortBy('fakülte')">Fakülte ↕</th>
-      <th onclick="sortBy('paket')">Paket ↕</th>
-      <th onclick="sortBy('dil')">Dil Seviyesi ↕</th>
-      <th onclick="sortBy('komisyon')">Komisyon ↕</th>
-      <th>Kurs Bitiş</th>
-      <th>Notlar</th>
-    </tr></thead>
+ <thead><tr>
+  <th class="td-no" onclick="sortBy('no')"># ↕</th>
+  <th onclick="sortBy('ad')">Hekim Adı ↕</th>
+  <th onclick="sortBy('cinsiyet')">Cinsiyet ↕</th>
+  <th onclick="sortBy('fakülte')">Fakülte ↕</th>
+  <th onclick="sortBy('paket')">Paket ↕</th>
+  <th onclick="sortBy('dil')">Dil Seviyesi ↕</th>
+  <th onclick="sortBy('komisyon')">Komisyon ↕</th>
+  <th onclick="sortBy('tarih')">Kurs Bitiş ↕</th>
+  <th onclick="sortBy('notlar')">Notlar ↕</th>
+</tr></thead>
     <tbody id="tbody"></tbody>
   </table>
   <div class="empty" id="empty" style="display:none"><div class="empty-icon">◎</div><div>Sonuç bulunamadı</div></div>
@@ -109,33 +109,220 @@
 <script>
 const SHEET_ID='1sR9_QMZzh74NhM_D-ZNKyKkca7ZSgyHh5t9SH-u3blM';
 let allData=[],sortCol=null,sortDir=1;
+
+const collator=new Intl.Collator('tr-TR',{numeric:true,sensitivity:'base'});
+
+function isEmpty(v){
+  return v===null||v===undefined||String(v).trim()==='';
+}
+
+function getCell(c,index){
+  const cell=c[index];
+  if(!cell)return{display:null,raw:null};
+  return{
+    display:cell.f??cell.v??null,
+    raw:cell.v??null
+  };
+}
+
+function escapeHTML(v){
+  if(v===null||v===undefined)return'';
+  return String(v).replace(/[&<>"']/g,s=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[s]));
+}
+
+function gDateToDisplay(v){
+  if(isEmpty(v))return null;
+  const m=String(v).match(/^Date\((\d+),(\d+),(\d+)\)$/);
+  if(!m)return null;
+  return new Date(
+    parseInt(m[1]),
+    parseInt(m[2]),
+    parseInt(m[3])
+  ).toLocaleDateString('tr-TR',{
+    day:'2-digit',
+    month:'long',
+    year:'numeric'
+  });
+}
+
+function tarihDisplay(h){
+  const val=!isEmpty(h.tarih)?h.tarih:h.tarihRaw;
+  if(isEmpty(val))return'';
+  return gDateToDisplay(val)||String(val);
+}
+
+function tarihTimestamp(v){
+  if(isEmpty(v))return null;
+
+  const s=String(v).trim();
+
+  let m=s.match(/^Date\((\d+),(\d+),(\d+)\)$/);
+  if(m){
+    return new Date(
+      parseInt(m[1]),
+      parseInt(m[2]),
+      parseInt(m[3])
+    ).getTime();
+  }
+
+  m=s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  if(m){
+    return new Date(
+      parseInt(m[3]),
+      parseInt(m[2])-1,
+      parseInt(m[1])
+    ).getTime();
+  }
+
+  const aylar={
+    'ocak':0,
+    'şubat':1,
+    'subat':1,
+    'mart':2,
+    'nisan':3,
+    'mayıs':4,
+    'mayis':4,
+    'haziran':5,
+    'temmuz':6,
+    'ağustos':7,
+    'agustos':7,
+    'eylül':8,
+    'eylul':8,
+    'ekim':9,
+    'kasım':10,
+    'kasim':10,
+    'aralık':11,
+    'aralik':11
+  };
+
+  const lower=s.toLocaleLowerCase('tr-TR');
+  m=lower.match(/^(\d{1,2})\s+([a-zçğıöşü]+)\s+(\d{4})$/u);
+  if(m&&aylar[m[2]]!==undefined){
+    return new Date(
+      parseInt(m[3]),
+      aylar[m[2]],
+      parseInt(m[1])
+    ).getTime();
+  }
+
+  return null;
+}
+
 async function loadData(){
   const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Hekimler`;
-  const r=await fetch(url);const text=await r.text();
+  const r=await fetch(url);
+  const text=await r.text();
   const json=JSON.parse(text.substring(47,text.length-2));
-  allData=json.table.rows.map(row=>{const c=row.c;return{no:c[0]?c[0].v:'',ad:c[1]?c[1].v:'',cinsiyet:c[2]?c[2].v:'',fakülte:c[3]?c[3].v:'',paket:c[4]?c[4].v:'',dil:c[5]?c[5].v:null,komisyon:c[6]?c[6].v:null,tarih:c[7]?c[7].v:null,notlar:c[8]?c[8].v:null};});
-  document.getElementById('lastUpdate').textContent='Güncellendi: '+new Date().toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  updateStats();render();
+
+  allData=json.table.rows.map(row=>{
+    const c=row.c;
+    const tarihCell=getCell(c,7);
+
+    return{
+      no:c[0]?c[0].v:'',
+      ad:c[1]?c[1].v:'',
+      cinsiyet:c[2]?c[2].v:'',
+      fakülte:c[3]?c[3].v:'',
+      paket:c[4]?c[4].v:'',
+      dil:c[5]?c[5].v:null,
+      komisyon:c[6]?c[6].v:null,
+      tarih:tarihCell.display,
+      tarihRaw:tarihCell.raw,
+      notlar:c[8]?c[8].v:null
+    };
+  });
+
+  document.getElementById('lastUpdate').textContent='Güncellendi: '+new Date().toLocaleString('tr-TR',{
+    day:'2-digit',
+    month:'2-digit',
+    year:'numeric',
+    hour:'2-digit',
+    minute:'2-digit'
+  });
+
+  updateStats();
+  render();
 }
-function parseGDate(v){if(!v)return null;const m=String(v).match(/Date\((\d+),(\d+),(\d+)\)/);if(!m)return null;return new Date(parseInt(m[1]),parseInt(m[2]),parseInt(m[3])).toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'});}
+
 function updateStats(){
   document.getElementById('s-toplam').textContent=allData.length;
-  document.getElementById('s-aktif').textContent=allData.filter(h=>h.dil!=='X'&&h.dil!==null).length;
+  document.getElementById('s-aktif').textContent=allData.filter(h=>h.dil!=='X'&&!isEmpty(h.dil)).length;
   document.getElementById('s-tamam').textContent=allData.filter(h=>h.komisyon==='Tamam').length;
   document.getElementById('s-kismi').textContent=allData.filter(h=>h.komisyon==='Kısmi').length;
   document.getElementById('s-iptal').textContent=allData.filter(h=>h.dil==='X').length;
-  document.getElementById('s-bekliyor').textContent=allData.filter(h=>h.dil===null&&h.komisyon===null).length;
+  document.getElementById('s-bekliyor').textContent=allData.filter(h=>isEmpty(h.dil)&&isEmpty(h.komisyon)).length;
 }
+
 function setFilter(key,val){
-  if(key==='durum'){document.getElementById('f-durum').value=val;document.getElementById('f-komisyon').value='';}
-  else if(key==='komisyon'){document.getElementById('f-komisyon').value=val;document.getElementById('f-durum').value='';}
+  if(key==='durum'){
+    document.getElementById('f-durum').value=val;
+    document.getElementById('f-komisyon').value='';
+  }
+  else if(key==='komisyon'){
+    document.getElementById('f-komisyon').value=val;
+    document.getElementById('f-durum').value='';
+  }
   render();
 }
+
 function resetFilters(){
   ['search','f-cinsiyet','f-paket','f-komisyon','f-dil','f-durum'].forEach(id=>document.getElementById(id).value='');
-  sortCol=null;sortDir=1;render();
+  sortCol=null;
+  sortDir=1;
+  render();
 }
-function sortBy(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}render();}
+
+function sortBy(col){
+  if(sortCol===col){
+    sortDir*=-1;
+  }else{
+    sortCol=col;
+    sortDir=1;
+  }
+  render();
+}
+
+function sortValue(h,col){
+  if(col==='tarih'){
+    const display=tarihDisplay(h);
+    const timestamp=tarihTimestamp(h.tarihRaw)??tarihTimestamp(display);
+
+    if(timestamp!==null)return{kind:0,value:timestamp};
+    if(!isEmpty(display))return{kind:1,value:display};
+    return{kind:2,value:''};
+  }
+
+  if(col==='no'){
+    const n=parseFloat(String(h.no).replace(',','.'));
+    if(Number.isFinite(n))return{kind:0,value:n};
+    return{kind:1,value:String(h.no||'')};
+  }
+
+  const val=h[col];
+
+  if(isEmpty(val))return{kind:1,value:''};
+  return{kind:0,value:String(val)};
+}
+
+function compareRows(a,b,col){
+  const A=sortValue(a,col);
+  const B=sortValue(b,col);
+
+  if(A.kind!==B.kind)return A.kind-B.kind;
+
+  if(typeof A.value==='number'&&typeof B.value==='number'){
+    return(A.value-B.value)*sortDir;
+  }
+
+  return collator.compare(String(A.value),String(B.value))*sortDir;
+}
+
 function render(){
   const search=document.getElementById('search').value.toLowerCase();
   const fC=document.getElementById('f-cinsiyet').value;
@@ -143,54 +330,81 @@ function render(){
   const fK=document.getElementById('f-komisyon').value;
   const fD=document.getElementById('f-dil').value;
   const fDr=document.getElementById('f-durum').value;
+
   let rows=allData.filter(h=>{
-    if(search){const a=(h.ad||'').toLowerCase().includes(search);const b=(h.fakülte||'').toLowerCase().includes(search);if(!a&&!b)return false;}
+    if(search){
+      const a=(h.ad||'').toLowerCase().includes(search);
+      const b=(h.fakülte||'').toLowerCase().includes(search);
+      if(!a&&!b)return false;
+    }
+
     if(fC&&h.cinsiyet!==fC)return false;
     if(fP&&h.paket!==fP)return false;
-    if(fK==='bekliyor'&&h.komisyon!==null)return false;
+
+    if(fK==='bekliyor'&&!isEmpty(h.komisyon))return false;
     else if(fK&&fK!=='bekliyor'&&h.komisyon!==fK)return false;
-    if(fD==='devam'&&h.dil!==null)return false;
+
+    if(fD==='devam'&&!isEmpty(h.dil))return false;
     else if(fD==='X'&&h.dil!=='X')return false;
     else if(fD&&fD!=='devam'&&fD!=='X'&&h.dil!==fD)return false;
-    if(fDr==='aktif'&&(h.dil==='X'||h.dil===null))return false;
+
+    if(fDr==='aktif'&&(h.dil==='X'||isEmpty(h.dil)))return false;
     if(fDr==='iptal'&&h.dil!=='X')return false;
-    if(fDr==='bekliyor'&&(h.dil!==null||h.komisyon!==null))return false;
+    if(fDr==='bekliyor'&&(!isEmpty(h.dil)||!isEmpty(h.komisyon)))return false;
+
     return true;
   });
-  if(sortCol)rows.sort((a,b)=>{const va=a[sortCol]||'';const vb=b[sortCol]||'';return va<vb?-sortDir:va>vb?sortDir:0;});
+
+  if(sortCol){
+    rows.sort((a,b)=>compareRows(a,b,sortCol));
+  }
+
   document.getElementById('filterCount').textContent=rows.length<allData.length?`${rows.length} / ${allData.length} hekim`:`${allData.length} hekim`;
+
   const tbody=document.getElementById('tbody');
   const empty=document.getElementById('empty');
-  if(rows.length===0){tbody.innerHTML='';empty.style.display='block';return;}
+
+  if(rows.length===0){
+    tbody.innerHTML='';
+    empty.style.display='block';
+    return;
+  }
+
   empty.style.display='none';
+
   tbody.innerHTML=rows.map((h,i)=>{
     const iptal=h.dil==='X';
-    const tarih=parseGDate(h.tarih);
+    const tarihText=tarihDisplay(h);
+
     let kB='';
     if(h.komisyon==='Tamam')kB='<span class="badge badge-tamam">✓ Tamam</span>';
     else if(h.komisyon==='Kısmi')kB='<span class="badge badge-kismi">⟳ Kısmi</span>';
     else if(h.komisyon==='X')kB='<span class="badge badge-iptal">— İptal</span>';
     else kB='<span class="badge badge-bekliyor">Bekliyor</span>';
+
     let dB='';
     if(h.dil==='X')dB='<span class="badge badge-iptal">İptal</span>';
-    else if(!h.dil)dB='<span class="badge badge-devam">Kursa Başlamadı</span>';
-    else dB=`<span class="dil-badge${h.dil==='C1'?' c1':''}">${h.dil}</span>`;
+    else if(isEmpty(h.dil))dB='<span class="badge badge-devam">Kursa Başlamadı</span>';
+    else dB=`<span class="dil-badge${h.dil==='C1'?' c1':''}">${escapeHTML(h.dil)}</span>`;
+
     const premium=h.paket&&h.paket!=='Ücretsiz';
     const pL=h.paket==='nexevita (5.475 Euro)'?'nexevita 5.475€':h.paket;
-    const pH=`<span class="paket-text ${premium?'premium':''}">${pL||'—'}</span>`;
+    const pH=`<span class="paket-text ${premium?'premium':''}">${escapeHTML(pL||'—')}</span>`;
+
     return `<tr style="animation-delay:${i*.015}s">
-      <td class="td-no">${h.no}</td>
-      <td class="td-name ${iptal?'iptal':''}">${h.ad}</td>
-      <td>${h.cinsiyet}</td>
-      <td>${h.fakülte}</td>
+      <td class="td-no">${escapeHTML(h.no)}</td>
+      <td class="td-name ${iptal?'iptal':''}">${escapeHTML(h.ad)}</td>
+      <td>${escapeHTML(h.cinsiyet)}</td>
+      <td>${escapeHTML(h.fakülte)}</td>
       <td>${pH}</td>
       <td>${dB}</td>
       <td>${kB}</td>
-      <td>${tarih?`<span class="tarih-text">${tarih}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
-      <td style="color:var(--muted);font-size:11px">${h.notlar||''}</td>
+      <td>${tarihText?`<span class="tarih-text">${escapeHTML(tarihText)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="color:var(--muted);font-size:11px">${escapeHTML(h.notlar||'')}</td>
     </tr>`;
   }).join('');
 }
+
 loadData();
 setInterval(loadData,300000);
 </script>
